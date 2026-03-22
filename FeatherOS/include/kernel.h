@@ -159,13 +159,6 @@ void serial_puts(const char *s);
 char serial_getchar(void);
 bool serial_has_input(void);
 
-/* Keyboard driver */
-void keyboard_init(void);
-char keyboard_read_scancode(void);
-char keyboard_getchar(void);
-bool keyboard_has_key(void);
-const char *keyboard_scancode_to_string(uint8_t scancode);
-
 /* String functions */
 void *memcpy(void *dest, const void *src, size_t n);
 void *memmove(void *dest, const void *src, size_t n);
