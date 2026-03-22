@@ -71,7 +71,8 @@ C_SOURCES := \
 	$(SRC_DIR)/kernel/sync/spinlock.c \
 	$(SRC_DIR)/kernel/sync/atomic.c \
 	$(SRC_DIR)/kernel/sync/sync.c \
-	$(SRC_DIR)/kernel/syscall_impl.c
+	$(SRC_DIR)/kernel/syscall_impl.c \
+	$(SRC_DIR)/kernel/exec.c
 
 ASM_OBJ := $(patsubst %.S,$(BUILD_DIR)/%.o,$(notdir $(ASM_SOURCES)))
 C_OBJ := $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(C_SOURCES)))
