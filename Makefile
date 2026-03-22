@@ -162,6 +162,30 @@ check-toolchain:
 	}
 	@echo "  -> $(CC): $$($(CC) --version | head -1)"
 
+# Build userland programs (shell, init)
+userland:
+	@echo "Building userland programs..."
+	@mkdir -p $(BUILD_DIR)/initramfs/bin $(BUILD_DIR)/initramfs/sbin
+	$(CC) $(CFLAGS) -nostdlib -fno-pie -o $(BUILD_DIR)/initramfs/shell $(SRC_DIR)/userland/shell/shell.c
+	$(CC) $(CFLAGS) -nostdlib -fno-pie -o $(BUILD_DIR)/initramfs/init $(SRC_DIR)/userland/init/init.c
+	cp $(BUILD_DIR)/initramfs/shell $(BUILD_DIR)/initramfs/bin/
+	cp $(BUILD_DIR)/initramfs/init $(BUILD_DIR)/initramfs/sbin/
+	@echo "Userland build complete"
+
+# Create initramfs cpio archive
+initramfs: userland
+	@echo "Creating initramfs..."
+	cd $(BUILD_DIR)/initramfs && find . -type f | cpio -o -H newc > $(BUILD_DIR)/initramfs.cpio
+	@echo "Created initramfs.cpio ($(shell wc -c < $(BUILD_DIR)/initramfs.cpio) bytes)"
+
+# Clean userland builds
+clean-userland:
+	rm -rf $(BUILD_DIR)/initramfs $(BUILD_DIR)/initramfs.cpio
+	@echo "Userland clean complete"
+
+# Build userland + kernel + boot image
+all-userland: userland initramfs
+
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f $(KERNEL_NAME) $(KERNEL_ELF) $(ISO_NAME) featheros.img featheros_bios.iso
