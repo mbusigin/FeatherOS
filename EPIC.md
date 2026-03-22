@@ -168,6 +168,425 @@ The following sprints are designed to achieve the goal: `make run` should fire u
 
 **Phase 4 contains Sprints 1-9 as detailed below:**
 
+---
+
+## Phase 1 Detailed Sprints: Foundation Fixes
+
+### Sprint 1: Create process.c (3 days)
+
+**Goal:** Create the missing `kernel/process.c` file that enables user process creation.
+
+#### Tasks
+
+**1.1 Create process.c skeleton (Day 1)**
+```c
+// kernel/process.c - Required file structure
+#include <process.h>
+#include <kernel.h>
+
+// User process creation
+int spawn_user_process(const char *path);
+int load_binary(void *data, size_t size);
+int setup_user_address_space(task_t *task);
+
+// User memory management
+int allocate_user_pages(task_t *task, uint64_t vaddr, size_t size);
+int map_user_pages(task_t *task, uint64_t vaddr, uint64_t phys, size_t size);
+```
+
+**1.2 Implement spawn_user_process() (Day 2)**
+- Allocate task struct via task.c's `allocate_task()`
+- Set up user page tables using paging.c
+- Load binary via exec.c's `elf_load()`
+- Set up user stack via user_mode.S helpers
+- Add to scheduler run queue
+
+**1.3 Implement load_binary() (Day 2)**
+- Call `elf_load()` from exec.c
+- Set entry point from ELF header
+- Allocate BSS region
+- Zero BSS pages
+
+**1.4 Connect to task.c (Day 3)**
+- Use `copy_process()` pattern from task.c
+- Set TF_USER flag
+- Set up user CPU context
+- Register with scheduler
+
+#### Acceptance Criteria
+```bash
+# Test: process.c compiles
+cd project && make clean && make 2>&1 | grep -c "process.c"  # Should show compilation
+# No "file not found" errors
+```
+
+#### Deliverables
+- `kernel/process.c` created with 300+ lines
+- `spawn_user_process()` function implemented
+- `load_binary()` function using exec.c
+
+---
+
+### Sprint 2: Fix main.c User Mode Entry (2 days)
+
+**Goal:** Modify kernel main.c to spawn user shell instead of kernel debug shell.
+
+#### Tasks
+
+**2.1 Add user mode initialization (Day 1)**
+```c
+// In main.c, replace shell_loop() with:
+void start_user_space(void) {
+    console_print("Starting user space...\n");
+
+    // Initialize process manager
+    process_init();
+
+    // Spawn shell as first user process
+    int pid = spawn_user_process("/bin/sh");
+    if (pid < 0) {
+        console_print("ERROR: Failed to spawn shell\n");
+        kernel_halt();
+    }
+
+    // Start scheduler (never returns)
+    scheduler_start();
+}
+```
+
+**2.2 Connect keyboard buffer to ISR (Day 1)**
+- Modify keyboard.c ISR to call `keyboard_buffer_put()`
+- Ensure `keyboard_buffer_get()` in syscall_impl.c works
+
+**2.3 Test boot sequence (Day 2)**
+- Verify serial output shows "Starting user space..."
+- Verify kernel doesn't panic
+- Verify scheduler runs
+
+#### Acceptance Criteria
+```bash
+# Test: Boot test
+cd project && make floppy 2>&1 | tail -5
+# Should show: "Starting user space..." in serial log
+```
+
+#### Deliverables
+- `main.c` modified to call `start_user_space()`
+- `process_init()` called before spawning shell
+- Scheduler started after shell spawns
+
+---
+
+### Sprint 3: Implement Missing Syscalls (3 days)
+
+**Goal:** Implement sys_open, sys_close, sys_execve so shell can work.
+
+#### Tasks
+
+**3.1 Implement sys_open (Day 1)**
+```c
+static unsigned long sys_open(unsigned long pathname, unsigned long flags,
+                              unsigned long mode) {
+    (void)pathname; (void)flags; (void)mode;
+    // Stub: return virtual FD number
+    static int next_fd = 10;
+    return next_fd++;
+}
+```
+
+**3.2 Implement sys_close (Day 1)**
+```c
+static unsigned long sys_close(unsigned long fd) {
+    if (fd >= 0 && fd < 128) return 0;
+    return -1;
+}
+```
+
+**3.3 Implement sys_execve (Day 2)**
+```c
+static unsigned long sys_execve(unsigned long filename,
+                                unsigned long argv, unsigned long envp) {
+    (void)filename; (void)argv; (void)envp;
+    return 0;  // Stub: no-op for pre-loaded shell
+}
+```
+
+**3.4 Add syscall to table (Day 3)**
+```c
+// In syscall_impl.c syscall_table:
+[2] = sys_open,    // SYS_open
+[3] = sys_close,   // SYS_close
+[59] = sys_execve, // SYS_execve
+```
+
+#### Acceptance Criteria
+```bash
+# Test: Shell compiles without undefined references
+cd project && gcc -c FeatherOS/userland/shell/shell.c 2>&1 | grep -c error
+# Should be 0
+```
+
+#### Deliverables
+- `sys_open` returns valid FD
+- `sys_close` accepts any FD
+- `sys_execve` stubs successfully
+
+---
+
+### Sprint 4: Integrate Userland Build (2 days)
+
+**Goal:** Fix `make userland` and `make run` to actually work.
+
+#### Tasks
+
+**4.1 Fix userland compilation (Day 1)**
+```makefile
+# In Makefile, fix userland target:
+userland:
+    mkdir -p $(BUILD_DIR)/initramfs/bin $(BUILD_DIR)/initramfs/sbin
+    $(CC) $(CFLAGS) -nostdlib -fno-pie -e _start \
+        -o $(BUILD_DIR)/initramfs/shell \
+        $(SRC_DIR)/userland/shell/shell.c
+```
+
+**4.2 Create initramfs (Day 1)**
+```bash
+# Create directory structure
+mkdir -p build/initramfs/bin build/initramfs/sbin
+# Copy binaries
+cp build/initramfs/shell build/initramfs/bin/sh
+cp build/initramfs/shell build/initramfs/sbin/init
+# Create cpio archive
+cd build/initramfs && find . -type f | cpio -o -H newc > ../initramfs.cpio
+```
+
+**4.3 Fix create_floppy.py (Day 2)**
+- Copy kernel.bin to floppy at correct offset (0x2000)
+- Set up proper MBR boot signature
+- Ensure BIOS loads kernel at 0x100000
+
+**4.4 Update Makefile run target (Day 2)**
+```makefile
+run: userland floppy
+    qemu-system-x86_64 -fda featheros.img -m 256M \
+        -serial file:serial.log -no-reboot
+```
+
+#### Acceptance Criteria
+```bash
+# Test: Full build
+cd project && make clean && make userland 2>&1 | tail -10
+# Should show: "Userland build complete"
+ls -la build/initramfs/shell  # Binary exists
+```
+
+#### Deliverables
+- `make userland` produces shell binary
+- `make run` launches QEMU
+- Serial log shows boot messages
+
+---
+
+## Phase 2 Detailed Sprints: Working Shell
+
+### Sprint 5: Shell Integration (2 days)
+
+**Goal:** Ensure shell input/output works correctly via syscalls.
+
+#### Tasks
+
+**5.1 Debug keyboard buffer (Day 1)**
+- Add debug prints to `keyboard_buffer_put()`
+- Verify ISR fires on keypress
+- Check buffer doesn't overflow
+
+**5.2 Debug console output (Day 2)**
+- Test `sys_write` outputs to VGA
+- Test `sys_write` outputs to serial
+- Verify `console_write_char()` works
+
+**5.3 Test interactive loop (Day 2)**
+```bash
+# Manual test in QEMU
+qemu-system-x86_64 -fda featheros.img -serial mon:stdio
+# Type 'echo hello' - should see output
+```
+
+#### Acceptance Criteria
+```bash
+# echo command produces output
+# help command shows help text
+# Cursor moves as you type
+```
+
+#### Deliverables
+- Keyboard input reaches shell
+- Shell output appears on screen
+- No infinite loops or crashes
+
+---
+
+### Sprint 6: Init Process (1 day)
+
+**Goal:** Make init spawn shell and handle exit gracefully.
+
+#### Tasks
+
+**6.1 Update init.c (Day 1)**
+```c
+void _start(void) {
+    welcome();
+    print("Initializing system...\n");
+
+    // For now: just run shell directly
+    extern void shell_loop(void);
+    shell_loop();
+
+    exit(0);
+}
+```
+
+**6.2 Handle exit gracefully (Day 1)**
+```c
+// In syscall_impl.c sys_exit:
+void do_exit(int code) {
+    serial_print("Shell exited with code %d\n", code);
+    kernel_halt();
+}
+```
+
+#### Acceptance Criteria
+```bash
+# Type 'exit' in shell
+# See "Goodbye!" message
+# QEMU closes or returns to kernel
+```
+
+#### Deliverables
+- `exit` command terminates shell
+- Init doesn't crash on exit
+- Clean return to kernel
+
+---
+
+### Sprint 7: Integration Testing (2 days)
+
+**Goal:** Verify `make run` produces working system.
+
+#### Tasks
+
+**7.1 Build test (Day 1)**
+```bash
+make clean && make
+make userland
+make run
+```
+
+**7.2 Manual verification (Day 1-2)**
+Test each of these:
+- [ ] Shell prompt appears
+- [ ] `echo hello` prints "hello"
+- [ ] `help` shows commands
+- [ ] `pwd` shows "/"
+- [ ] `ls` shows "."
+- [ ] `exit` terminates
+
+**7.3 Create test script (Day 2)**
+```bash
+#!/bin/bash
+# test_shell.sh
+make clean && make && make userland
+timeout 5 qemu-system-x86_64 -fda featheros.img \
+    -serial file:test_serial.log -nographic || true
+grep "echo hello" test_serial.log && echo "PASS" || echo "FAIL"
+```
+
+#### Acceptance Criteria
+```bash
+# make run produces working shell
+# QEMU launches with serial output
+# Serial log contains shell output
+```
+
+#### Deliverables
+- Working `make run` command
+- Test script for regression
+- Documentation of expected output
+
+---
+
+## Phase 3 Detailed Sprints: Polish
+
+### Sprint 8: File Operations (2 days)
+
+**Goal:** Add basic file operations to shell.
+
+#### Tasks
+
+**8.1 Implement sys_read**
+- Read from file descriptor
+- Connect to VFS
+
+**8.2 Add cat command support**
+- Use sys_open/sys_read/sys_close
+
+#### Acceptance Criteria
+```bash
+# cat filename works
+# File contents displayed
+```
+
+#### Deliverables
+- `cat filename` works
+- File contents displayed
+
+---
+
+### Sprint 9: Testing & Documentation (1 day)
+
+**Goal:** Update documentation and test procedure.
+
+#### Tasks
+
+**9.1 Update README**
+- Add "Getting Started" section
+- Document `make run` usage
+- Document expected output
+
+**9.2 Create test documentation**
+- Document manual test procedure
+- Note any quirks or issues
+- Add troubleshooting section
+
+#### Acceptance Criteria
+```bash
+# README is accurate
+# New developer can build and run following README
+```
+
+#### Deliverables
+- Updated README with usage instructions
+- Test procedure documented
+
+---
+
+# Phase 4: Extended Features (Future)
+
+### Sprint 10: Process Forking
+- [ ] Implement sys_clone/sys_fork
+- [ ] Copy-on-write page tables
+- [ ] Test parent/child relationship
+
+### Sprint 11: Signal Handling
+- [ ] SIGINT for Ctrl+C
+- [ ] Signal handler registration
+- [ ] Process signal delivery
+
+### Sprint 12: Virtual Terminals
+- [ ] Alt+F1-F6 terminal switching
+- [ ] Terminal buffer management
+- [ ] Input routing to active terminal
+
 **Goal:** Create the missing `kernel/process.c` file that enables user process creation.
 
 ### Tasks
