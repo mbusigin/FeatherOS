@@ -61,6 +61,16 @@ static inline uint32_t inl(uint16_t port) {
     return val;
 }
 
+static inline void insw(uint16_t port, void *addr, uint32_t count) {
+    __asm__ volatile("rep insw" : "=D"(addr), "=c"(count)
+                   : "d"(port), "0"(addr), "1"(count) : "memory");
+}
+
+static inline void outsw(uint16_t port, const void *addr, uint32_t count) {
+    __asm__ volatile("rep outsw" : "=S"(addr), "=c"(count)
+                   : "d"(port), "0"(addr), "1"(count) : "memory");
+}
+
 /* Memory-mapped I/O */
 static inline uint8_t mmio_read8(volatile void *addr) {
     return *(volatile uint8_t*)addr;
