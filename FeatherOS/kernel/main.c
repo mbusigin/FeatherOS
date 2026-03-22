@@ -9,6 +9,7 @@ extern void console_init(void);
 extern void serial_init(void);
 extern void vga_init(void);
 extern void keyboard_init(void);
+extern void syscall_init(void);
 
 /* Debug shell command buffer */
 #define CMD_BUFFER_SIZE 256
@@ -168,6 +169,9 @@ void kernel_main(uint32_t magic, void *mbi) {
     
     /* Initialize keyboard */
     keyboard_init();
+    
+    /* Initialize syscalls */
+    syscall_init();
     
     /* Boot messages */
     console_print("\n");

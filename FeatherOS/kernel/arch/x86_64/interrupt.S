@@ -97,33 +97,58 @@ INTERRUPT_GATE 47  /* IRQ15 - Secondary IDE */
 
 .globl syscall_entry
 syscall_entry:
-    /* Already in syscall context, save minimal state */
-    push %rdi
-    push %rsi
-    push %rdx
-    push %rcx
-    push %r8
-    push %r9
-    push %r10
-    push %r11
+    /* Save all registers - syscall clobbers rcx and r11 */
+    push %rax        /* Save syscall number (will be return value) */
+    push %rcx        /* Save original RIP (clobbered by syscall) */
+    push %r11        /* Save original RFLAGS (clobbered by syscall) */
+    push %rdi        /* Save arg1 */
+    push %rsi        /* Save arg2 */
+    push %rdx        /* Save arg3 */
+    push %r10        /* Save arg4 (syscall uses r10, not rcx) */
+    push %r8         /* Save arg5 */
+    push %r9         /* Save arg6 */
+    push %rbp
+    push %rbx
+    push %r12
+    push %r13
+    push %r14
+    push %r15
     
     /* Load syscall handler */
     movq sycall_handler_ptr(%rip), %rax
     testq %rax, %rax
     jz syscall_return
     
-    /* Call syscall handler */
+    /* Restore args to registers for handler call
+     * syscall convention: rdi=arg1, rsi=arg2, rdx=arg3, r10=arg4, r8=arg5, r9=arg6
+     * syscall number was in original rax (now at rsp+120) */
+    movq 120(%rsp), %rdi    /* syscall number -> rdi */
+    movq %rsi, %rsi         /* arg2 */
+    movq %rdx, %rdx         /* arg3 */
+    /* r10 already has arg4 */
+    /* r8 already has arg5 */
+    /* r9 already has arg6 */
+    
+    /* Call syscall handler - returns result in rax */
     callq *%rax
     
 syscall_return:
-    pop %r11
-    pop %r10
+    /* Result is now in rax - restore state (reverse order) */
+    pop %r15
+    pop %r14
+    pop %r13
+    pop %r12
+    pop %rbx
+    pop %rbp
     pop %r9
     pop %r8
-    pop %rcx
+    pop %r10
     pop %rdx
     pop %rsi
     pop %rdi
+    pop %r11        /* Restore original RFLAGS */
+    pop %rcx        /* Restore original RIP -> goes to rcx */
+    pop %rax        /* Syscall return value */
     
     iretq
 
