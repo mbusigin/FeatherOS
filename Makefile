@@ -1,16 +1,18 @@
 # FeatherOS Makefile
-# A complete build system for the FeatherOS kernel
+# Sprint 2: Bootloader & Bare Metal Entry
 
 PROJECT_NAME := FeatherOS
 KERNEL_NAME := kernel.bin
 KERNEL_ELF := kernel.elf
+ISO_NAME := featheros.iso
 VERSION := 0.1.0
 
 SRC_DIR := FeatherOS
-BUILD_DIR := build
 INCLUDE_DIR := $(SRC_DIR)/include
+BUILD_DIR := build
+GRUB_DIR := $(BUILD_DIR)/boot/grub
+ISO_DIR := $(BUILD_DIR)/iso
 
-# Cross compiler
 PREFIX ?= x86_64-elf-
 CC := $(PREFIX)gcc
 AS := $(PREFIX)as
@@ -23,7 +25,6 @@ CFLAGS += -fno-strict-aliasing -fno-stack-protector
 CFLAGS += -mno-red-zone -ffreestanding -g -DDEBUG
 CFLAGS += -I$(INCLUDE_DIR)
 
-# ASM sources
 ASM_SOURCES := \
 	$(SRC_DIR)/boot/header.S \
 	$(SRC_DIR)/kernel/arch/x86_64/boot_64.S \
@@ -34,7 +35,6 @@ ASM_SOURCES := \
 	$(SRC_DIR)/kernel/arch/x86_64/syscall.S \
 	$(SRC_DIR)/kernel/sched/context.S
 
-# C sources
 C_SOURCES := \
 	$(SRC_DIR)/kernel/main.c \
 	$(SRC_DIR)/kernel/printk.c \
@@ -69,14 +69,13 @@ C_SOURCES := \
 	$(SRC_DIR)/kernel/sync/mutex.c \
 	$(SRC_DIR)/kernel/sync/semaphore.c
 
-# Object files
 ASM_OBJ := $(patsubst %.S,$(BUILD_DIR)/%.o,$(notdir $(ASM_SOURCES)))
 C_OBJ := $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(C_SOURCES)))
 ALL_OBJ := $(ASM_OBJ) $(C_OBJ)
 
 LDFLAGS := -T $(SRC_DIR)/linker.ld
 
-.PHONY: all clean check-toolchain
+.PHONY: all clean check-toolchain floppy iso run
 
 all: check-toolchain
 	@echo "=========================================="
@@ -104,8 +103,8 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)/kernel/net
 	mkdir -p $(BUILD_DIR)/kernel/drivers
 	mkdir -p $(BUILD_DIR)/kernel/sync
+	mkdir -p $(BUILD_DIR)/iso/boot/grub
 
-# ASM objects
 $(BUILD_DIR)/%.o: $(SRC_DIR)/boot/%.S
 	@echo "[AS] $<"
 	$(AS) -g -o $@ $<
@@ -118,7 +117,6 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/sched/%.S
 	@echo "[AS] $<"
 	$(AS) -g -o $@ $<
 
-# C objects
 $(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/%.c
 	@echo "[CC] $<"
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -156,14 +154,37 @@ check-toolchain:
 
 clean:
 	rm -rf $(BUILD_DIR)
-	rm -f $(KERNEL_NAME) $(KERNEL_ELF)
+	rm -f $(KERNEL_NAME) $(KERNEL_ELF) $(ISO_NAME) featheros.img featheros_bios.iso
 	@echo "Clean complete"
 
-.PHONY: run disasm info
+# Create floppy image with simple boot sector
+floppy: $(KERNEL_NAME)
+	@echo "Creating bootable floppy image..."
+	@python3 create_floppy.py
+	@echo "Created featheros.img"
 
-run: $(KERNEL_NAME)
-	qemu-system-x86_64 -kernel $(KERNEL_NAME) -m 256M -serial stdio -display curses 2>/dev/null || \
-	qemu-system-x86_64 -kernel $(KERNEL_NAME) -m 256M -serial mon:stdio -display none
+# Create bootable ISO with GRUB2
+iso: $(KERNEL_ELF)
+	cp $(KERNEL_ELF) $(BUILD_DIR)/iso/boot/kernel.elf
+	cp $(SRC_DIR)/boot/grub.cfg $(BUILD_DIR)/iso/boot/grub/grub.cfg
+	@i686-elf-grub-mkrescue -o featheros_bios.iso $(BUILD_DIR)/iso 2>/dev/null || \
+	x86_64-elf-grub-mkrescue -o featheros.iso $(BUILD_DIR)/iso 2>/dev/null || \
+	{ echo "WARNING: grub-mkrescue not found."; }
+	@ls -la *.iso 2>/dev/null || echo "No ISO created"
+
+# Run in QEMU (uses floppy image for booting)
+run: floppy
+	@echo "Running FeatherOS in QEMU..."
+	@echo "---"
+	@(qemu-system-x86_64 \
+		-fda featheros.img \
+		-m 256M \
+		-nographic \
+		-serial file:qemu_serial.log \
+		-no-reboot & \
+	sleep 3 && \
+	grep -i "hello\|kernel\|boot" qemu_serial.log 2>/dev/null | head -5 || echo "No boot messages found" && \
+	killall qemu-system-x86_64 2>/dev/null) || true
 
 disasm: $(KERNEL_ELF)
 	$(OBJDUMP) -d -M intel $(KERNEL_ELF) | head -100
@@ -173,6 +194,8 @@ info: $(KERNEL_ELF)
 
 help:
 	@echo "FeatherOS Build System"
-	@echo "  make all   - Build kernel"
-	@echo "  make clean - Clean"
-	@echo "  make run   - Run in QEMU"
+	@echo "  make all    - Build kernel"
+	@echo "  make clean  - Clean"
+	@echo "  make floppy - Create bootable floppy image"
+	@echo "  make iso    - Create bootable ISO"
+	@echo "  make run    - Run in QEMU"

@@ -1,110 +1,105 @@
 /* FeatherOS - Printf Implementation */
 
-#include <stdint.h>
-#include <stdarg.h>
+#include <kernel.h>
 
+/* Forward declarations */
 extern void vga_putchar(char c);
 
-static void putchar(char c) {
-    vga_putchar(c);
+/* Minimal printf */
+static void print_str(const char *s) {
+    while (*s) {
+        vga_putchar(*s++);
+    }
 }
 
-static void puts(const char *s) {
-    while (*s) putchar(*s++);
-}
-
-static void puthex(uint64_t value, int width) {
+static void print_hex(uint32_t val) {
     const char hex[] = "0123456789ABCDEF";
-    char buf[20];
-    int i = 0;
+    char buf[11];
+    buf[0] = '0';
+    buf[1] = 'x';
+    buf[10] = '\0';
     
-    if (value == 0) {
-        while (width-- > 1) putchar('0');
-        putchar('0');
+    if (val == 0) {
+        print_str("0x0");
         return;
     }
     
-    while (value > 0) {
-        buf[i++] = hex[value & 0xF];
-        value >>= 4;
+    int i = 9;
+    while (val > 0 && i > 1) {
+        buf[i--] = hex[val & 0xF];
+        val >>= 4;
     }
-    
-    while (i < width) buf[i++] = '0';
-    
-    while (i > 0) putchar(buf[--i]);
+    print_str(buf);
 }
 
 int printk(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     
-    int written = 0;
-    
     for (const char *p = fmt; *p; p++) {
         if (*p != '%') {
-            putchar(*p);
-            written++;
+            vga_putchar(*p);
             continue;
         }
         
         p++;
         switch (*p) {
             case 'c': {
-                char c = va_arg(args, int);
-                putchar(c);
-                written++;
+                char c = (char)va_arg(args, int);
+                vga_putchar(c);
                 break;
             }
             case 's': {
                 const char *s = va_arg(args, const char *);
-                puts(s);
-                written++;
+                print_str(s ? s : "(null)");
                 break;
             }
-            case 'd':
-            case 'i': {
-                int value = va_arg(args, int);
-                if (value < 0) {
-                    putchar('-');
-                    written++;
-                    value = -value;
+            case 'd': {
+                int val = va_arg(args, int);
+                if (val < 0) {
+                    vga_putchar('-');
+                    val = -val;
                 }
-                puthex(value, 0);
-                written++;
+                char buf[12];
+                int i = 10;
+                buf[11] = '\0';
+                if (val == 0) buf[10] = '0';
+                while (val > 0 && i >= 0) {
+                    buf[i--] = '0' + (val % 10);
+                    val /= 10;
+                }
+                print_str(&buf[i+1]);
                 break;
             }
             case 'u': {
-                unsigned int value = va_arg(args, unsigned int);
-                puthex(value, 0);
-                written++;
+                unsigned int val = va_arg(args, unsigned int);
+                char buf[11];
+                buf[10] = '\0';
+                if (val == 0) buf[9] = '0';
+                int i = 9;
+                while (val > 0 && i >= 0) {
+                    buf[i--] = '0' + (val % 10);
+                    val /= 10;
+                }
+                print_str(&buf[i+1]);
                 break;
             }
             case 'x':
-            case 'X': {
-                unsigned int value = va_arg(args, unsigned int);
-                puthex(value, 8);
-                written++;
-                break;
-            }
             case 'p': {
-                void *ptr = va_arg(args, void *);
-                putchar('0'); putchar('x');
-                puthex((uint64_t)ptr, 16);
-                written += 18;
+                uint32_t val = va_arg(args, uint32_t);
+                print_hex(val);
                 break;
             }
             case '%':
-                putchar('%');
-                written++;
+                vga_putchar('%');
                 break;
             default:
-                putchar('%');
-                putchar(*p);
-                written += 2;
+                vga_putchar('%');
+                vga_putchar(*p);
                 break;
         }
     }
     
     va_end(args);
-    return written;
+    return 0;
 }
