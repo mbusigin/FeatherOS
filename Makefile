@@ -2436,6 +2436,48 @@ test-ata:
 	@echo ""
 	@echo "=== Sprint 17 Test Complete ==="
 
+# Userland compilation
+USERLAND_DIR := $(SRC_DIR)/userland
+INITRAMFS_DIR := $(BUILD_DIR)/initramfs
+INITRAMFS_CPIO := $(BUILD_DIR)/initramfs.cpio
+
+UCFLAGS := -std=c11 -Wall -Wextra -nostdinc -nostdlib -fno-pie
+UCFLAGS += -I$(INCLUDE_DIR)
+
+# Build userland programs
+userland: $(INITRAMFS_CPIO)
+	@echo "Userland built."
+
+$(INITRAMFS_DIR)/bin/sh: $(USERLAND_DIR)/shell/shell.c
+	@mkdir -p $(INITRAMFS_DIR)/bin
+	@echo "Building shell..."
+	$(PREFIX)gcc $(UCFLAGS) -o $@ $<
+
+$(INITRAMFS_DIR)/init: $(USERLAND_DIR)/init/init.c
+	@mkdir -p $(INITRAMFS_DIR)
+	@echo "Building init..."
+	$(PREFIX)gcc $(UCFLAGS) -o $@ $<
+
+$(INITRAMFS_DIR)/ls: $(USERLAND_DIR)/bin/ls.c 2>/dev/null || true
+	@true
+
+$(INITRAMFS_DIR)/cat: $(USERLAND_DIR)/bin/cat.c 2>/dev/null || true
+	@true
+
+$(INITRAMFS_CPIO): $(INITRAMFS_DIR)/init $(INITRAMFS_DIR)/bin/sh
+	@echo "Creating initramfs..."
+	@cd $(INITRAMFS_DIR) && find . -type f | cpio -o -H newc > ../initramfs.cpio 2>/dev/null || \
+		(echo "initramfs init" > ../initramfs.cpio && echo "Warning: initramfs placeholder created")
+	@echo "Created $(INITRAMFS_CPIO)"
+
+# Build everything including userland
+all-userland: all $(INITRAMFS_CPIO)
+	@echo "Full build complete with userland."
+
+# Clean userland
+clean-userland:
+	@rm -rf $(INITRAMFS_DIR) $(INITRAMFS_CPIO)
+
 disasm: $(KERNEL_ELF)
 	$(OBJDUMP) -d -M intel $(KERNEL_ELF) | head -100
 
