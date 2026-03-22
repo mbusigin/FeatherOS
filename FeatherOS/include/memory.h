@@ -15,11 +15,10 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <paging.h>
 
 /* Memory constants */
-#define PAGE_SIZE 4096
-#define PAGE_SHIFT 12
-#define MEMORY_BITMAP_MAGIC 0xFEATHER
+#define MEMORY_BITMAP_MAGIC 0xFEAD
 
 /* Memory region types */
 typedef enum {
@@ -84,18 +83,12 @@ typedef struct e820_entry {
     uint64_t length;
     uint32_t type;
     uint32_t acpi_ext;
-} __packed e820_entry_t;
+} e820_entry_t;
 
 /* Maximum E820 entries */
 #define E820_MAX_ENTRIES 128
 #define E820_SIGNATURE 0x0000E820
 #define E820_SMAP 0x534D4150
-
-/* Detect memory using E820 BIOS call */
-int memory_detect_e820(e820_entry_t *entries, int max_entries);
-
-/* Parse and add E820 entries to memory manager */
-int memory_parse_e820(memory_manager_t *mm, e820_entry_t *entries, int count);
 
 /*============================================================================
  * MEMORY MANAGER INITIALIZATION

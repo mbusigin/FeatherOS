@@ -14,7 +14,8 @@ memory_manager_t *mem_manager = NULL;
 #define BITMAP_CLR(bitmap, bit) ((bitmap)[(bit) / 32] &= ~(1U << ((bit) % 32)))
 #define BITMAP_TEST(bitmap, bit) (((bitmap)[(bit) / 32] & (1U << ((bit) % 32))) != 0)
 
-/* Find first zero bit in a bitmap word */
+/* Find first zero bit in a bitmap word (reserved for future use) */
+static int find_first_zero(uint32_t word) __attribute__((unused));
 static int find_first_zero(uint32_t word) {
     for (int i = 0; i < 32; i++) {
         if ((word & (1U << i)) == 0) return i;
