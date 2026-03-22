@@ -4,6 +4,7 @@
  */
 
 #include <kernel.h>
+#include <keyboard.h>
 
 /* Console state */
 static bool console_initialized = false;
@@ -46,8 +47,9 @@ void console_puts(const char *s) {
 /* Read a character from console (waits for input) */
 char console_getchar(void) {
     /* Try keyboard first, then serial */
-    if (keyboard_has_key()) {
-        return keyboard_getchar();
+    int c = keyboard_getchar();
+    if (c >= 0) {
+        return (char)c;
     }
     
     while (!serial_has_input()) {
@@ -59,7 +61,7 @@ char console_getchar(void) {
 
 /* Check if input is available */
 bool console_has_input(void) {
-    return keyboard_has_key() || serial_has_input();
+    return keyboard_has_input() || serial_has_input();
 }
 
 /* Read a line from console with editing */
