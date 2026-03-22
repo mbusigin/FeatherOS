@@ -7,6 +7,7 @@
 #include <datastructures.h>
 #include <paging.h>
 #include <memory.h>
+#include <stdint.h>
 
 /*============================================================================
  * GLOBALS
@@ -18,8 +19,21 @@ static process_table_t process_table = {0};
 /* Current task pointer */
 static task_t *current_task = NULL;
 
-/* Forward declarations */
-static void switch_to(task_t *prev, task_t *next);
+/* Context switch statistics */
+static struct {
+    uint64_t total_switches;
+    uint64_t switch_time_total;
+    uint64_t switch_time_min;
+    uint64_t switch_time_max;
+    uint64_t last_switch_tsc;
+} ctx_stats = {0, 0, (uint64_t)-1, 0, 0};
+
+/* External assembly functions */
+extern void switch_to(task_t *prev, task_t *next);
+extern void fpu_save(void *fpu_state);
+extern void fpu_restore(void *fpu_state);
+extern void fpu_init(void);
+extern uint64_t read_tsc(void);
 
 /*============================================================================
  * PID ALLOCATOR
@@ -325,14 +339,35 @@ void schedule(void) {
     
     if (next == prev) return;
     
+    /* Track context switch statistics */
+    uint64_t start_tsc = read_tsc();
+    
+    /* Save FPU state of previous task */
+    if (prev) {
+        fpu_save(&prev->fpu_state);
+    }
+    
+    /* Perform context switch */
+    task_t *old = prev;
+    switch_to(old, next);
+    
+    /* Restore FPU state of new task */
+    fpu_restore(&next->fpu_state);
+    
+    /* Update statistics */
+    uint64_t switch_time = read_tsc() - start_tsc;
+    ctx_stats.total_switches++;
+    ctx_stats.switch_time_total += switch_time;
+    if (switch_time < ctx_stats.switch_time_min) ctx_stats.switch_time_min = switch_time;
+    if (switch_time > ctx_stats.switch_time_max) ctx_stats.switch_time_max = switch_time;
+    
+    /* Update current task */
     current_task = next;
     next->state = TASK_STATE_RUNNING;
     
-    if (prev) {
-        schedule_tail(prev);
+    if (old) {
+        schedule_tail(old);
     }
-    
-    switch_to(prev, next);
 }
 
 void schedule_tail(task_t *prev) {
@@ -649,18 +684,31 @@ int kernel_thread_helper(void) {
 }
 
 /*============================================================================
- * CONTEXT SWITCH
+ * CONTEXT SWITCH STATISTICS
  *============================================================================*/
 
-/* Context switch between tasks - assembly version would be better */
-void switch_to(task_t *prev, task_t *next) {
-    (void)prev;
-    (void)next;
-    /* Full context switch would save/restore all registers */
-    /* For now, just update current task pointer */
-    current_task = next;
+void context_switch_print_stats(void) {
+    console_print("Context Switch Statistics:\n");
+    console_print("  Total switches: %lu\n", ctx_stats.total_switches);
     
-    /* Update process table current pointer */
-    process_table.current = next;
-    process_table.previous = prev;
+    if (ctx_stats.total_switches > 0) {
+        uint64_t avg = ctx_stats.switch_time_total / ctx_stats.total_switches;
+        console_print("  Average switch time: %lu cycles\n", avg);
+        console_print("  Min switch time: %lu cycles\n", ctx_stats.switch_time_min);
+        console_print("  Max switch time: %lu cycles\n", ctx_stats.switch_time_max);
+        
+        /* Estimate switches per second (assuming 3GHz CPU) */
+        uint64_t switches_per_sec = 3000000000ULL / avg;
+        console_print("  Estimated switches/sec: %lu\n", switches_per_sec);
+    }
+    console_print("\n");
+}
+
+uint64_t context_switch_get_count(void) {
+    return ctx_stats.total_switches;
+}
+
+uint64_t context_switch_get_avg_time(void) {
+    if (ctx_stats.total_switches == 0) return 0;
+    return ctx_stats.switch_time_total / ctx_stats.total_switches;
 }

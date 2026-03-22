@@ -38,6 +38,9 @@ typedef int32_t pid_t;
  * PROCESS STATE
  *============================================================================*/
 
+/* FPU state size for x87/SSE */
+#define FPU_STATE_SIZE 512
+
 typedef enum {
     TASK_STATE_NEW = 0,
     TASK_STATE_READY,
@@ -98,6 +101,9 @@ typedef struct task_struct {
     uint64_t end_code;
     uint64_t start_data;
     uint64_t end_data;
+    
+    /* FPU/SSE State */
+    uint8_t fpu_state[FPU_STATE_SIZE];  /* FPU register state */
     
     /* Scheduling */
     int priority;                 /* Nice value: -20 to +19 */
@@ -276,5 +282,10 @@ void sched_exit(task_t *task);
 
 /* kernel_thread helper */
 int kernel_thread_helper(void);
+
+/* Context switch statistics */
+void context_switch_print_stats(void);
+uint64_t context_switch_get_count(void);
+uint64_t context_switch_get_avg_time(void);
 
 #endif /* FEATHEROS_PROCESS_H */
