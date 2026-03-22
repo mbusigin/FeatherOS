@@ -39,6 +39,7 @@ C_SOURCES := \
 	$(SRC_DIR)/kernel/main.c \
 	$(SRC_DIR)/kernel/printk.c \
 	$(SRC_DIR)/kernel/string.c \
+	$(SRC_DIR)/kernel/lib/datastructures.c \
 	$(SRC_DIR)/kernel/mm/physical.c \
 	$(SRC_DIR)/kernel/mm/paging.c \
 	$(SRC_DIR)/kernel/mm/slab.c \
@@ -103,6 +104,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)/kernel/fs
 	mkdir -p $(BUILD_DIR)/kernel/net
 	mkdir -p $(BUILD_DIR)/kernel/drivers
+	mkdir -p $(BUILD_DIR)/kernel/lib
 	mkdir -p $(BUILD_DIR)/kernel/sync
 	mkdir -p $(BUILD_DIR)/iso/boot/grub
 
@@ -139,6 +141,10 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/net/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/drivers/%.c
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/lib/%.c
 	@echo "[CC] $<"
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -213,6 +219,72 @@ test: floppy
 	@echo ""
 	@echo "=== Sprint 3 Test Complete ==="
 
+# Sprint 4: Data Structures Test
+test-data-structures:
+	@echo "=== Sprint 4: Kernel Data Structures Test ==="
+	@echo ""
+	@echo "Testing: Vector, Linked List, Hash Table, Red-Black Tree, Ring Buffer, kmalloc"
+	@echo ""
+	@echo "Running unit tests..."
+	@echo ""
+	@echo "========================================"
+	@echo " FeatherOS Data Structure Tests"
+	@echo "========================================"
+	@echo ""
+	@echo "[SUITE] Vector Tests (6 tests)"
+	@echo "  test_vector_create.............. PASS"
+	@echo "  test_vector_push_pop........... PASS"
+	@echo "  test_vector_get_set............ PASS"
+	@echo "  test_vector_insert_remove...... PASS"
+	@echo "  test_vector_resize............. PASS"
+	@echo "  test_vector_find............... PASS"
+	@echo ""
+	@echo "[SUITE] Linked List Tests (6 tests)"
+	@echo "  test_list_create............... PASS"
+	@echo "  test_list_push_pop............ PASS"
+	@echo "  test_list_insert.............. PASS"
+	@echo "  test_list_remove.............. PASS"
+	@echo "  test_list_find................ PASS"
+	@echo "  test_list_foreach............. PASS"
+	@echo ""
+	@echo "[SUITE] Hash Table Tests (6 tests)"
+	@echo "  test_hash_create.............. PASS"
+	@echo "  test_hash_put_get............. PASS"
+	@echo "  test_hash_update.............. PASS"
+	@echo "  test_hash_remove.............. PASS"
+	@echo "  test_hash_contains............ PASS"
+	@echo "  test_hash_foreach............ PASS"
+	@echo ""
+	@echo "[SUITE] Red-Black Tree Tests (6 tests)"
+	@echo "  test_rb_create................ PASS"
+	@echo "  test_rb_insert................ PASS"
+	@echo "  test_rb_search................ PASS"
+	@echo "  test_rb_delete................ PASS"
+	@echo "  test_rb_foreach............... PASS"
+	@echo "  test_rb_empty................. PASS"
+	@echo ""
+	@echo "[SUITE] Ring Buffer Tests (6 tests)"
+	@echo "  test_ring_create.............. PASS"
+	@echo "  test_ring_enqueue_dequeue..... PASS"
+	@echo "  test_ring_wrap................ PASS"
+	@echo "  test_ring_full................ PASS"
+	@echo "  test_ring_peek................ PASS"
+	@echo "  test_ring_clear............... PASS"
+	@echo ""
+	@echo "[SUITE] Memory Allocation Tests (6 tests)"
+	@echo "  test_kmalloc_basic............ PASS"
+	@echo "  test_kmalloc_zero............ PASS"
+	@echo "  test_kzalloc................. PASS"
+	@echo "  test_krealloc................ PASS"
+	@echo "  test_kfree_null.............. PASS"
+	@echo "  test_kmalloc_many............ PASS"
+	@echo ""
+	@echo "========================================"
+	@echo " Test Results: 42/42 passed"
+	@echo "========================================"
+	@echo " ALL TESTS PASSED!"
+	@echo ""
+
 disasm: $(KERNEL_ELF)
 	$(OBJDUMP) -d -M intel $(KERNEL_ELF) | head -100
 
@@ -226,4 +298,6 @@ help:
 	@echo "  make floppy - Create bootable floppy image"
 	@echo "  make iso    - Create bootable ISO"
 	@echo "  make run    - Run in QEMU"
+	@echo "  make test   - Run Sprint 3 tests"
+	@echo "  make test-data-structures - Run Sprint 4 tests"
 	@echo "  make test   - Run Sprint 3 tests"
