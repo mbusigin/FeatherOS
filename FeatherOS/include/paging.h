@@ -108,27 +108,12 @@ typedef struct {
 } page_fault_stats_t;
 
 /*============================================================================
- * VIRTUAL MEMORY AREA (VMA) FLAGS
- *============================================================================*/
-
-#define VMA_READ        0x1
-#define VMA_WRITE       0x2
-#define VMA_EXEC        0x4
-#define VMA_USER        0x8
-#define VMA_NOREGION    0x10
-#define VMA_MMAP        0x20
-
-/*============================================================================
  * VIRTUAL MEMORY AREA
  *============================================================================*/
 
-typedef struct vma {
-    uint64_t start;          /* Start address */
-    uint64_t end;            /* End address */
-    uint64_t flags;          /* VMA flags */
-    const char *name;        /* Optional name */
-    struct vma *next;        /* Linked list */
-} vma_t;
+/* Forward declaration */
+struct vma;
+typedef struct vma vma_t;
 
 /*============================================================================
  * VMM (VIRTUAL MEMORY MANAGER)
@@ -245,15 +230,6 @@ void paging_print_stats(void);
 /*============================================================================
  * VMA MANAGEMENT
  *============================================================================*/
-
-/* Find VMA containing address */
-vma_t *vma_find(vmm_t *mm, uint64_t addr);
-
-/* Insert VMA */
-int vma_insert(vmm_t *mm, vma_t *vma);
-
-/* Remove VMA */
-int vma_remove(vmm_t *mm, vma_t *vma);
 
 /*============================================================================
  * mmap/munmap (syscall stubs)

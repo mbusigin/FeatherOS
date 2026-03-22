@@ -359,43 +359,7 @@ void paging_print_stats(void) {
  * VMA MANAGEMENT
  *============================================================================*/
 
-vma_t *vma_find(vmm_t *mm, uint64_t addr) {
-    if (!mm) return NULL;
-    
-    for (vma_t *vma = mm->vmas; vma != NULL; vma = vma->next) {
-        if (addr >= vma->start && addr < vma->end) {
-            return vma;
-        }
-    }
-    return NULL;
-}
-
-int vma_insert(vmm_t *mm, vma_t *vma) {
-    if (!mm || !vma) return -1;
-    
-    vma->next = mm->vmas;
-    mm->vmas = vma;
-    
-    return 0;
-}
-
-int vma_remove(vmm_t *mm, vma_t *vma) {
-    if (!mm || !vma) return -1;
-    
-    if (mm->vmas == vma) {
-        mm->vmas = vma->next;
-        return 0;
-    }
-    
-    for (vma_t *curr = mm->vmas; curr != NULL; curr = curr->next) {
-        if (curr->next == vma) {
-            curr->next = vma->next;
-            return 0;
-        }
-    }
-    
-    return -1;
-}
+/* VMA functions are implemented in vma.c */
 
 /*============================================================================
  * mmap/munmap STUBS
