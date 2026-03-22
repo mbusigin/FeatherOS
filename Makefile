@@ -2472,6 +2472,7 @@ UCFLAGS += -I$(INCLUDE_DIR)
 
 # Build userland programs
 userland: $(INITRAMFS_CPIO)
+	cp $(INITRAMFS_DIR)/bin/sh $(INITRAMFS_DIR)/shell 2>/dev/null || true
 	@echo "Userland built."
 
 $(INITRAMFS_DIR)/bin/sh: $(USERLAND_DIR)/shell/shell.c
