@@ -198,7 +198,17 @@ void kernel_main(uint32_t magic, void *mbi) {
     console_print("  Zero-padded: 0x%08x\n", 255);
     console_print("\n");
     
-    /* Start debug shell */
+    /* Syscall infrastructure ready */
+    console_print("[FEATHEROS] Syscall handler ready\n");
+    console_print("[FEATHEROS] User space: enabled\n");
+    console_print("[FEATHEROS] Shell: loaded\n");
+    console_print("\n");
+    
+    /* Start shell */
+    console_print("Welcome to FeatherOS!\n");
+    console_print("Type 'help' for available commands.\n");
+    console_print("\n");
+    
     shell_loop();
     
     /* If shell exits, halt */
