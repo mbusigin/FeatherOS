@@ -335,17 +335,17 @@ pid_t sys_exit_group(int exit_code) {
  * WAIT QUEUE
  *============================================================================*/
 
-void init_wait_queue(wait_queue_t *wq) {
+void init_wait_queue(process_wait_queue_t *wq) {
     if (wq) {
         wq->task = NULL;
         wq->next = NULL;
     }
 }
 
-void add_to_wait_queue(wait_queue_t *wq, task_t *task) {
+void add_to_wait_queue(process_wait_queue_t *wq, task_t *task) {
     if (!wq || !task) return;
     
-    wait_queue_t *entry = (wait_queue_t*)kmalloc(sizeof(wait_queue_t));
+    process_wait_queue_t *entry = (process_wait_queue_t*)kmalloc(sizeof(process_wait_queue_t));
     if (!entry) return;
     
     entry->task = task;
@@ -356,12 +356,12 @@ void add_to_wait_queue(wait_queue_t *wq, task_t *task) {
     task->wait_queue = wq;
 }
 
-void wake_up(wait_queue_t *wq) {
+void wake_up(process_wait_queue_t *wq) {
     if (!wq) return;
     
-    wait_queue_t **curr = &wq->next;
+    process_wait_queue_t **curr = &wq->next;
     while (*curr) {
-        wait_queue_t *entry = *curr;
+        process_wait_queue_t *entry = *curr;
         task_t *task = entry->task;
         
         if (task && (task->state == TASK_STATE_BLOCKED || task->state == TASK_STATE_SLEEPING)) {

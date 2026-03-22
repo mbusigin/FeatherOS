@@ -67,6 +67,10 @@ typedef struct {
     uint64_t cs, ss, ds, es, fs, gs;
 } cpu_context_t;
 
+/* Forward declaration for process_wait_queue_t */
+struct process_wait_queue;
+typedef struct process_wait_queue process_wait_queue_t;
+
 /*============================================================================
  * PROCESS/THREAD STRUCTURE (task_struct)
  *============================================================================*/
@@ -154,7 +158,7 @@ typedef struct task_struct {
     struct task_struct *prev;
     
     /* Wait queue */
-    struct wait_queue *wait_queue;
+    process_wait_queue_t *wait_queue;
     
     /* Thread-local storage */
     void *tls_area;
@@ -179,6 +183,15 @@ typedef struct task_struct {
     void (*kernel_thread_fn)(void *arg);
     void *kernel_thread_arg;
 } task_t;
+
+/*============================================================================
+ * WAIT QUEUE (for blocking tasks)
+ *============================================================================*/
+
+struct process_wait_queue {
+    task_t *task;
+    struct process_wait_queue *next;
+};
 
 /*============================================================================
  * PID ALLOCATOR
@@ -257,6 +270,11 @@ void set_task_state(task_t *task, task_state_t state);
 task_state_t get_task_state(task_t *task);
 void set_task_flags(task_t *task, uint32_t flags);
 void clear_task_flags(task_t *task, uint32_t flags);
+
+/* Wait queue */
+void init_wait_queue(process_wait_queue_t *wq);
+void add_to_wait_queue(process_wait_queue_t *wq, task_t *task);
+void wake_up(process_wait_queue_t *wq);
 
 /* Process table operations */
 task_t *find_task_by_pid(pid_t pid);
