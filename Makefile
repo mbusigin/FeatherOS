@@ -31,6 +31,7 @@ ASM_SOURCES := \
 	$(SRC_DIR)/kernel/arch/x86_64/gdt.S \
 	$(SRC_DIR)/kernel/arch/x86_64/paging.S \
 	$(SRC_DIR)/kernel/arch/x86_64/interrupt.S \
+	$(SRC_DIR)/kernel/arch/x86_64/user_mode.S \
 	$(SRC_DIR)/kernel/sched/context.S \
 	$(SRC_DIR)/kernel/sched/context_switch.S
 
