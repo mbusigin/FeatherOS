@@ -181,15 +181,6 @@ typedef struct task_struct {
 } task_t;
 
 /*============================================================================
- * WAIT QUEUE
- *============================================================================*/
-
-typedef struct wait_queue {
-    task_t *task;
-    struct wait_queue *next;
-} wait_queue_t;
-
-/*============================================================================
  * PID ALLOCATOR
  *============================================================================*/
 
@@ -266,12 +257,6 @@ void set_task_state(task_t *task, task_state_t state);
 task_state_t get_task_state(task_t *task);
 void set_task_flags(task_t *task, uint32_t flags);
 void clear_task_flags(task_t *task, uint32_t flags);
-
-/* Wait queue */
-void init_wait_queue(wait_queue_t *wq);
-void add_to_wait_queue(wait_queue_t *wq, task_t *task);
-void remove_from_wait_queue(wait_queue_t *wq, task_t *task);
-void wake_up(wait_queue_t *wq);
 
 /* Process table operations */
 task_t *find_task_by_pid(pid_t pid);
