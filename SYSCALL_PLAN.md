@@ -1,64 +1,87 @@
 # FeatherOS Syscall Implementation Plan
 
-## Overview
-Implement real syscall support to enable userland program execution in FeatherOS.
+## Phase 1: Syscall Handler Infrastructure ✅
+**Status: COMPLETED**
 
-## Phases
+### Done
+- [x] Created `include/syscall.h` with Linux-compatible syscall numbers
+- [x] Created `kernel/syscall_impl.c` with `do_syscall()` handler
+- [x] Fixed `interrupt.S` syscall_entry to properly pass syscall number
+- [x] Added `syscall_init()` to set up handler pointer
+- [x] Integrated into kernel main loop
 
-### Phase 1: Syscall Handler (kernel/arch/x86_64/syscall.S)
-- [ ] Define syscall numbers in include/syscall.h
-- [ ] Implement syscall entry point (syscall instruction)
-- [ ] Save/restore registers
-- [ ] Call C handler
-- [ ] Return to user space
+### Files Created
+- `FeatherOS/include/syscall.h` - syscall numbers
+- `FeatherOS/kernel/syscall_impl.c` - C syscall handler
 
-### Phase 2: Basic Syscalls (kernel/syscall.c)
-- [ ] sys_read - read from fd
-- [ ] sys_write - write to fd  
-- [ ] sys_exit - terminate process
-- [ ] sys_brk - change data segment
+### Files Modified
+- `FeatherOS/kernel/arch/x86_64/interrupt.S` - fixed syscall_entry
+- `FeatherOS/kernel/main.c` - added syscall_init call
+- `Makefile` - added syscall_impl.c to build
 
-### Phase 3: Process Syscalls
-- [ ] sys_fork - create process
-- [ ] sys_execve - execute program
-- [ ] sys_wait4 - wait for process
+## Phase 2: Basic Syscalls ✅
+**Status: COMPLETED (stub implementations)**
 
-### Phase 4: User Space Entry
-- [ ] Map user space memory (0x400000)
-- [ ] Set up user stack
-- [ ] Load initramfs into memory
-- [ ] Jump to user mode (iretq)
+### Implemented
+| Syscall | Number | Status |
+|---------|--------|--------|
+| read    | 0      | stub - returns 0 |
+| write   | 1      | stub - returns count |
+| brk     | 12     | stub - tracks brk |
+| sched_yield | 24 | stub - returns 0 |
+| exit    | 60     | stub - halts |
 
-### Phase 5: Integration
-- [ ] Modify main.c to spawn init
-- [ ] Bundle initramfs into boot image
-- [ ] Test with shell
+## Phase 3: User Space Entry ⏳
+**Status: NEXT PHASE**
 
-## Syscall Numbers (Linux-compatible)
-| Number | Name | Description |
-|--------|------|-------------|
-| 0 | read | Read from fd |
-| 1 | write | Write to fd |
-| 2 | open | Open file |
-| 3 | close | Close fd |
-| 9 | mmap | Memory map |
-| 10 | mprotect | Set protection |
-| 11 | munmap | Unmap memory |
-| 12 | brk | Change data segment |
-| 21 | access | Check file access |
-| 59 | execve | Execute program |
-| 60 | exit | Terminate |
-| 231 | exit_group | Exit all threads |
-| 60 | exit | Exit process |
+### Requirements
+1. Set up user space page tables
+2. Map user memory at 0x400000
+3. Configure GDT with user code/data segments
+4. Load user program into memory
+5. Set up stack for user space
+6. Return to user space via iret/sysret
 
-## Implementation Files
-- `FeatherOS/include/syscall.h` - Syscall numbers and definitions
-- `FeatherOS/kernel/arch/x86_64/syscall.S` - Assembly entry point
-- `FeatherOS/kernel/syscall.c` - C syscall handlers
-- `FeatherOS/kernel/exec.c` - Program loading
+### Files Needed
+- `kernel/arch/x86_64/sysret.S` - return to user mode
+- `kernel/exec.c` - load ELF/user program
 
-## Test
-```bash
-make clean && make all && make run
-# Should see shell prompt in QEMU
-```
+## Phase 4: Userland Programs ⏳
+**Status: DEPENDS ON PHASE 3**
+
+### Requirements
+1. Initramfs support in boot
+2. Shell execution
+3. Basic /dev, /proc, /sys
+
+## Phase 5: Full Integration ⏳
+**Status: DEPENDS ON PHASE 4**
+
+### Requirements
+1. Proper memory management per process
+2. Process table
+3. Signal handling
+4. File descriptor table
+5. Working file I/O syscalls
+
+---
+
+## Implementation Details
+
+### Syscall Convention (Linux x86_64)
+- Syscall number: RAX
+- Arguments: RDI, RSI, RDX, R10, R8, R9
+- Return: RAX
+- Clobbered: RCX, R11
+
+### Current Stub Behavior
+- `read(0, buf, count)` - returns 0 (no data)
+- `write(1, buf, count)` - returns count (fake success)
+- `exit(code)` - infinite hlt loop
+- Other syscalls - return -1 (ENOSYS)
+
+### Next Steps
+1. Implement actual serial/console I/O for read/write
+2. Create user space entry code
+3. Load initramfs with shell
+4. Set up proper memory mapping for user space
