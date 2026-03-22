@@ -2,7 +2,7 @@
 
 **Epic:** FeatherOS User Space Shell  
 **Phase:** Phase 4  
-**Status:** TODO  
+**Status:** DONE  
 **Priority:** P1 (High)  
 **Estimated Duration:** 2 days  
 

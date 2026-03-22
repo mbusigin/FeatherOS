@@ -979,10 +979,10 @@ make run 2>&1 | head -20
 
 | Phase | Sprint | Status | Focus | Owner |
 |-------|--------|--------|-------|-------|
-| 1 | 1 | 🔴 TODO | Create process.c | - |
-| 1 | 2 | 🔴 TODO | Fix main.c user mode entry | - |
-| 1 | 3 | 🔴 TODO | Implement missing syscalls | - |
-| 1 | 4 | 🔴 TODO | Integrate userland build | - |
+| 1 | 1 | ✅ DONE | Create process.c | - |
+| 1 | 2 | ✅ DONE | Fix main.c user mode entry | - |
+| 1 | 3 | ✅ DONE | Implement missing syscalls | - |
+| 1 | 4 | ✅ DONE | Integrate userland build | - |
 | 2 | 5 | 🔴 TODO | Shell integration | - |
 | 2 | 6 | 🔴 TODO | Init process | - |
 | 2 | 7 | 🔴 TODO | Integration testing | - |

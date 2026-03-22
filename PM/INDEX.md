@@ -13,10 +13,10 @@ This directory contains sprint task files for implementing the user-space shell 
 
 | # | Sprint | Status | Priority | Duration |
 |---|--------|--------|----------|----------|
-| 1 | [SPRINT_01_create_process_c.md](SPRINT_01_create_process_c.md) | TODO | P0 | 3 days |
-| 2 | [SPRINT_02_fix_main_c.md](SPRINT_02_fix_main_c.md) | TODO | P0 | 2 days |
-| 3 | [SPRINT_03_implement_syscalls.md](SPRINT_03_implement_syscalls.md) | TODO | P0 | 3 days |
-| 4 | [SPRINT_04_integrate_userland.md](SPRINT_04_integrate_userland.md) | TODO | P1 | 2 days |
+| 1 | [SPRINT_01_create_process_c.md](SPRINT_01_create_process_c.md) | DONE | P0 | 3 days |
+| 2 | [SPRINT_02_fix_main_c.md](SPRINT_02_fix_main_c.md) | DONE | P0 | 2 days |
+| 3 | [SPRINT_03_implement_syscalls.md](SPRINT_03_implement_syscalls.md) | DONE | P0 | 3 days |
+| 4 | [SPRINT_04_integrate_userland.md](SPRINT_04_integrate_userland.md) | DONE | P1 | 2 days |
 | 5 | [SPRINT_05_shell_integration.md](SPRINT_05_shell_integration.md) | TODO | P1 | 2 days |
 | 6 | [SPRINT_06_init_process.md](SPRINT_06_init_process.md) | TODO | P2 | 1 day |
 | 7 | [SPRINT_07_integration_testing.md](SPRINT_07_integration_testing.md) | TODO | P1 | 2 days |
