@@ -231,15 +231,6 @@ task_t *copy_process(unsigned long clone_flags, unsigned long stack_start) {
  * TASK STATE MANAGEMENT
  *============================================================================*/
 
-void set_task_state(task_t *task, task_state_t state) {
-    if (!task) return;
-    task->state = state;
-}
-
-task_state_t get_task_state(task_t *task) {
-    return task ? task->state : TASK_STATE_ZOMBIE;
-}
-
 void set_task_flags(task_t *task, uint32_t flags) {
     if (!task) return;
     task->flags |= flags;
@@ -304,86 +295,6 @@ int remove_task(task_t *task) {
 }
 
 /*============================================================================
- * SCHEDULING
- *============================================================================*/
-
-void schedule(void) {
-    task_t *prev = current_task;
-    task_t *next = NULL;
-    
-    /* Simple round-robin for now */
-    int current_index = -1;
-    if (prev) {
-        for (int i = 0; i < MAX_PROCESSES; i++) {
-            if (process_table.tasks[i] == prev) {
-                current_index = i;
-                break;
-            }
-        }
-    }
-    
-    /* Find next ready task */
-    for (int i = 1; i < MAX_PROCESSES; i++) {
-        int index = (current_index + i) % MAX_PROCESSES;
-        task_t *task = process_table.tasks[index];
-        if (task && (task->state == TASK_STATE_READY || task->state == TASK_STATE_RUNNING)) {
-            next = task;
-            break;
-        }
-    }
-    
-    /* If no user task, use idle */
-    if (!next) {
-        next = process_table.idle_task;
-    }
-    
-    if (next == prev) return;
-    
-    /* Track context switch statistics */
-    uint64_t start_tsc = read_tsc();
-    
-    /* Save FPU state of previous task */
-    if (prev) {
-        fpu_save(&prev->fpu_state);
-    }
-    
-    /* Perform context switch */
-    task_t *old = prev;
-    switch_to(old, next);
-    
-    /* Restore FPU state of new task */
-    fpu_restore(&next->fpu_state);
-    
-    /* Update statistics */
-    uint64_t switch_time = read_tsc() - start_tsc;
-    ctx_stats.total_switches++;
-    ctx_stats.switch_time_total += switch_time;
-    if (switch_time < ctx_stats.switch_time_min) ctx_stats.switch_time_min = switch_time;
-    if (switch_time > ctx_stats.switch_time_max) ctx_stats.switch_time_max = switch_time;
-    
-    /* Update current task */
-    current_task = next;
-    next->state = TASK_STATE_RUNNING;
-    
-    if (old) {
-        schedule_tail(old);
-    }
-}
-
-void schedule_tail(task_t *prev) {
-    (void)prev;
-    /* Any cleanup after context switch */
-}
-
-void yield(void) {
-    task_t *current = get_current_task();
-    if (current) {
-        current->state = TASK_STATE_READY;
-    }
-    schedule();
-}
-
-/*============================================================================
  * PROCESS EXIT
  *============================================================================*/
 
@@ -399,8 +310,8 @@ int do_exit(int exit_code) {
     process_table.stats.running_tasks--;
     process_table.stats.zombie_tasks++;
     
-    /* Wake up parent if waiting */
-    /* For now, just remove from table */
+    /* Remove from scheduler and table */
+    sched_exit(current);
     remove_task(current);
     
     /* Schedule next task */
@@ -418,25 +329,6 @@ pid_t sys_exit_group(int exit_code) {
     (void)exit_code;
     /* Would exit all threads in group */
     return do_exit(exit_code);
-}
-
-/*============================================================================
- * WAKE UP
- *============================================================================*/
-
-int wake_up_process(task_t *task) {
-    if (!task) return -1;
-    
-    if (task->state == TASK_STATE_BLOCKED || task->state == TASK_STATE_SLEEPING) {
-        task->state = TASK_STATE_READY;
-        return 0;
-    }
-    
-    return -1;
-}
-
-int try_to_wake_up(task_t *task) {
-    return wake_up_process(task);
 }
 
 /*============================================================================
@@ -645,32 +537,6 @@ task_t *get_current_task(void) {
 
 process_table_t *get_process_table(void) {
     return &process_table;
-}
-
-/*============================================================================
- * SCHEDULER HOOKS
- *============================================================================*/
-
-void sched_init(void) {
-    /* Scheduler initialization */
-}
-
-void sched_tick(void) {
-    /* Called on each timer tick */
-    task_t *current = get_current_task();
-    if (current) {
-        current->utime++;  /* Increment user time */
-    }
-}
-
-void sched_fork(task_t *task) {
-    (void)task;
-    /* Fork-specific scheduling setup */
-}
-
-void sched_exit(task_t *task) {
-    (void)task;
-    /* Exit-specific cleanup */
 }
 
 /* kernel_thread helper for starting kernel threads */

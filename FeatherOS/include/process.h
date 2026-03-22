@@ -115,6 +115,19 @@ typedef struct task_struct {
     uint64_t sched_latency;
     uint64_t slice_runtime;
     
+    /* CFS-specific fields */
+    struct {
+        void *my_q;              /* Run queue task belongs to (void* to avoid circular) */
+        struct task_struct *parent;   /* Parent in CFS tree */
+        struct task_struct *left;    /* Left child in CFS tree */
+        struct task_struct *right;   /* Right child in CFS tree */
+        uint64_t load_weight;        /* Load weight based on nice */
+        uint64_t exec_start;         /* Execution start time */
+    } cfs;
+    
+    /* Sleep deadline (for schedule_timeout) */
+    uint64_t sleep_deadline;
+    
     /* Timing */
     uint64_t utime;              /* User time */
     uint64_t stime;              /* Kernel time */
