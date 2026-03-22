@@ -1,0 +1,178 @@
+# FeatherOS Makefile
+# A complete build system for the FeatherOS kernel
+
+PROJECT_NAME := FeatherOS
+KERNEL_NAME := kernel.bin
+KERNEL_ELF := kernel.elf
+VERSION := 0.1.0
+
+SRC_DIR := FeatherOS
+BUILD_DIR := build
+INCLUDE_DIR := $(SRC_DIR)/include
+
+# Cross compiler
+PREFIX ?= x86_64-elf-
+CC := $(PREFIX)gcc
+AS := $(PREFIX)as
+LD := $(PREFIX)ld
+OBJCOPY := $(PREFIX)objcopy
+OBJDUMP := $(PREFIX)objdump
+
+CFLAGS := -std=c11 -Wall -Wextra -Werror -pedantic
+CFLAGS += -fno-strict-aliasing -fno-stack-protector
+CFLAGS += -mno-red-zone -ffreestanding -g -DDEBUG
+CFLAGS += -I$(INCLUDE_DIR)
+
+# ASM sources
+ASM_SOURCES := \
+	$(SRC_DIR)/boot/header.S \
+	$(SRC_DIR)/kernel/arch/x86_64/boot_64.S \
+	$(SRC_DIR)/kernel/arch/x86_64/gdt.S \
+	$(SRC_DIR)/kernel/arch/x86_64/paging.S \
+	$(SRC_DIR)/kernel/arch/x86_64/idt.S \
+	$(SRC_DIR)/kernel/arch/x86_64/interrupts.S \
+	$(SRC_DIR)/kernel/arch/x86_64/syscall.S \
+	$(SRC_DIR)/kernel/sched/context.S
+
+# C sources
+C_SOURCES := \
+	$(SRC_DIR)/kernel/main.c \
+	$(SRC_DIR)/kernel/printk.c \
+	$(SRC_DIR)/kernel/string.c \
+	$(SRC_DIR)/kernel/mm/physical.c \
+	$(SRC_DIR)/kernel/mm/paging.c \
+	$(SRC_DIR)/kernel/mm/slab.c \
+	$(SRC_DIR)/kernel/mm/vma.c \
+	$(SRC_DIR)/kernel/mm/kmalloc.c \
+	$(SRC_DIR)/kernel/sched/schedule.c \
+	$(SRC_DIR)/kernel/sched/task.c \
+	$(SRC_DIR)/kernel/fs/vfs.c \
+	$(SRC_DIR)/kernel/fs/fat32.c \
+	$(SRC_DIR)/kernel/fs/ext2.c \
+	$(SRC_DIR)/kernel/fs/procfs.c \
+	$(SRC_DIR)/kernel/net/eth.c \
+	$(SRC_DIR)/kernel/net/ip.c \
+	$(SRC_DIR)/kernel/net/tcp.c \
+	$(SRC_DIR)/kernel/net/udp.c \
+	$(SRC_DIR)/kernel/net/arp.c \
+	$(SRC_DIR)/kernel/drivers/keyboard.c \
+	$(SRC_DIR)/kernel/drivers/mouse.c \
+	$(SRC_DIR)/kernel/drivers/vga.c \
+	$(SRC_DIR)/kernel/drivers/ata.c \
+	$(SRC_DIR)/kernel/drivers/ahci.c \
+	$(SRC_DIR)/kernel/drivers/serial.c \
+	$(SRC_DIR)/kernel/drivers/pit.c \
+	$(SRC_DIR)/kernel/drivers/pic.c \
+	$(SRC_DIR)/kernel/drivers/apic.c \
+	$(SRC_DIR)/kernel/sync/spinlock.c \
+	$(SRC_DIR)/kernel/sync/atomic.c \
+	$(SRC_DIR)/kernel/sync/mutex.c \
+	$(SRC_DIR)/kernel/sync/semaphore.c
+
+# Object files
+ASM_OBJ := $(patsubst %.S,$(BUILD_DIR)/%.o,$(notdir $(ASM_SOURCES)))
+C_OBJ := $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(C_SOURCES)))
+ALL_OBJ := $(ASM_OBJ) $(C_OBJ)
+
+LDFLAGS := -T $(SRC_DIR)/linker.ld
+
+.PHONY: all clean check-toolchain
+
+all: check-toolchain
+	@echo "=========================================="
+	@echo "Building $(PROJECT_NAME) $(VERSION)"
+	@echo "=========================================="
+	$(MAKE) $(KERNEL_ELF)
+	@echo ""
+	@echo "Build complete!"
+	@echo ""
+
+$(KERNEL_ELF): $(BUILD_DIR) $(ALL_OBJ)
+	@echo "[LD] $@"
+	$(LD) $(LDFLAGS) -o $@ $(ALL_OBJ)
+	@echo "[OBJCOPY] $(KERNEL_NAME)"
+	$(OBJCOPY) -O binary $@ $(KERNEL_NAME)
+	@ls -la $@ $(KERNEL_NAME)
+
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/boot
+	mkdir -p $(BUILD_DIR)/kernel/arch/x86_64
+	mkdir -p $(BUILD_DIR)/kernel/mm
+	mkdir -p $(BUILD_DIR)/kernel/sched
+	mkdir -p $(BUILD_DIR)/kernel/fs
+	mkdir -p $(BUILD_DIR)/kernel/net
+	mkdir -p $(BUILD_DIR)/kernel/drivers
+	mkdir -p $(BUILD_DIR)/kernel/sync
+
+# ASM objects
+$(BUILD_DIR)/%.o: $(SRC_DIR)/boot/%.S
+	@echo "[AS] $<"
+	$(AS) -g -o $@ $<
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/arch/x86_64/%.S
+	@echo "[AS] $<"
+	$(AS) -g -o $@ $<
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/sched/%.S
+	@echo "[AS] $<"
+	$(AS) -g -o $@ $<
+
+# C objects
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/%.c
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/mm/%.c
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/sched/%.c
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/fs/%.c
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/net/%.c
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/drivers/%.c
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/kernel/sync/%.c
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+check-toolchain:
+	@which $(CC) >/dev/null 2>&1 || { \
+		echo "ERROR: $(CC) not found!"; \
+		exit 1; \
+	}
+	@echo "  -> $(CC): $$($(CC) --version | head -1)"
+
+clean:
+	rm -rf $(BUILD_DIR)
+	rm -f $(KERNEL_NAME) $(KERNEL_ELF)
+	@echo "Clean complete"
+
+.PHONY: run disasm info
+
+run: $(KERNEL_NAME)
+	qemu-system-x86_64 -kernel $(KERNEL_NAME) -m 256M -serial stdio -display curses 2>/dev/null || \
+	qemu-system-x86_64 -kernel $(KERNEL_NAME) -m 256M -serial mon:stdio -display none
+
+disasm: $(KERNEL_ELF)
+	$(OBJDUMP) -d -M intel $(KERNEL_ELF) | head -100
+
+info: $(KERNEL_ELF)
+	$(OBJDUMP) -f $(KERNEL_ELF)
+
+help:
+	@echo "FeatherOS Build System"
+	@echo "  make all   - Build kernel"
+	@echo "  make clean - Clean"
+	@echo "  make run   - Run in QEMU"

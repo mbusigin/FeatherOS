@@ -1,0 +1,79 @@
+# FeatherOS .gitignore
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.out
+*.elf
+*.bin
+*.iso
+*.img
+*.raw
+*.qcow2
+*.vmdk
+
+# Kernel image
+kernel.bin
+kernel.elf
+kernel.debug
+
+# Build directories
+build/
+dist/
+out/
+
+# Object files
+*.o
+*.obj
+
+# Dependencies
+*.d
+*.depend
+
+# Debug
+*.gdb
+*.core
+*.dump
+
+# Editor files
+*.swp
+*.swo
+*~
+.*.swp
+.vscode/
+.idea/
+
+# OS images
+*.iso
+*.img
+featheros-*.img
+
+# Log files
+*.log
+
+# Test outputs
+test_output/
+test_results/
+
+# Toolchain (if built locally)
+toolchain/
+cross/
+
+# Documentation builds
+docs/html/
+docs/latex/
+docs/pdf/
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node modules
+node_modules/
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
