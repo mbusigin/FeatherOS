@@ -1,8 +1,10 @@
 /* FeatherOS - Kernel Main
  * Sprint 3: Console & Basic I/O
+ * Sprint 2: User Space Shell Entry
  */
 
 #include <kernel.h>
+#include <process.h>
 
 /* Forward declarations */
 extern void console_init(void);
@@ -10,6 +12,10 @@ extern void serial_init(void);
 extern void vga_init(void);
 extern void keyboard_init(void);
 extern void syscall_init(void);
+
+/* From process.c */
+extern int user_process_init(void);
+extern int spawn_user_process(const char *path);
 
 /* Debug shell command buffer */
 #define CMD_BUFFER_SIZE 256
@@ -30,7 +36,7 @@ static void shell_help(void) {
 
 static void shell_info(void) {
     console_print("FeatherOS Information:\n");
-    console_print("  Version: 0.1.0 (Sprint 3)\n");
+    console_print("  Version: 0.2.0 (User Shell)\n");
     console_print("  Architecture: x86_64\n");
     console_print("  Boot Mode: Multiboot2\n");
     console_print("  VGA Mode: 80x25 Text\n");
@@ -137,9 +143,9 @@ static void execute_command(char *cmd) {
     }
 }
 
-/* Interactive shell loop */
-static void shell_loop(void) {
-    console_print("\n[Shell] Type 'help' for available commands.\n\n");
+/* Interactive kernel debug shell loop */
+static void kernel_shell_loop(void) {
+    console_print("\n[DEBUG] Kernel debug shell - type 'shell' to start user shell\n\n");
     
     while (1) {
         console_print("FeatherOS> ");
@@ -147,16 +153,67 @@ static void shell_loop(void) {
         int len = console_readline(cmd_buffer, CMD_BUFFER_SIZE);
         
         if (len < 0) {
-            console_print("\n[Shell] Goodbye!\n");
+            console_print("\n[DEBUG] Goodbye!\n");
             break;
         }
         
         if (len > 0) {
+            /* Check for 'shell' command to start user shell */
+            if (strcmp(cmd_buffer, "shell") == 0) {
+                console_print("\n[DEBUG] Starting user shell...\n");
+                return;  /* Return to start_user_space */
+            }
+            
             console_print("\n");
             execute_command(cmd_buffer);
             console_print("\n");
         }
     }
+}
+
+/*
+ * Start user space - spawn user shell
+ * This is called after kernel initialization
+ */
+static void start_user_space(void) {
+    console_print("\n");
+    console_print("======================================\n");
+    console_print(" Starting FeatherOS User Space\n");
+    console_print("======================================\n");
+    console_print("\n");
+    
+    /* Initialize user process subsystem */
+    console_print("[MAIN] Initializing user process subsystem...\n");
+    user_process_init();
+    
+    /* Spawn user shell */
+    console_print("[MAIN] Spawning user shell...\n");
+    int pid = spawn_user_process("/bin/sh");
+    
+    if (pid < 0) {
+        console_print("[MAIN] ERROR: Failed to spawn user shell!\n");
+        console_print("[MAIN] Starting kernel debug shell instead...\n");
+        kernel_shell_loop();
+        return;
+    }
+    
+    console_print("[MAIN] User shell spawned with PID %d\n", pid);
+    console_print("\n");
+    console_print("======================================\n");
+    console_print(" FeatherOS User Shell Ready!\n");
+    console_print("======================================\n");
+    console_print("\n");
+    
+    /* For now, fall back to kernel shell since we don't have full scheduler integration */
+    console_print("[MAIN] Note: Full scheduler not integrated yet.\n");
+    console_print("[MAIN] Starting kernel debug shell...\n");
+    console_print("[MAIN] Type 'shell' to attempt user shell spawn.\n");
+    console_print("\n");
+    
+    kernel_shell_loop();
+    
+    /* Should never reach here */
+    kernel_halt();
 }
 
 /* Main kernel entry point */
@@ -204,13 +261,9 @@ void kernel_main(uint32_t magic, void *mbi) {
     console_print("[FEATHEROS] Shell: loaded\n");
     console_print("\n");
     
-    /* Start shell */
-    console_print("Welcome to FeatherOS!\n");
-    console_print("Type 'help' for available commands.\n");
-    console_print("\n");
+    /* Start user space instead of debug shell */
+    start_user_space();
     
-    shell_loop();
-    
-    /* If shell exits, halt */
+    /* If user space exits, halt */
     kernel_halt();
 }

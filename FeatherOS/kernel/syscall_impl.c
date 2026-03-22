@@ -66,6 +66,9 @@ static unsigned long sys_read(unsigned long fd, unsigned long buf, unsigned long
                               unsigned long arg4, unsigned long arg5, unsigned long arg6);
 static unsigned long sys_write(unsigned long fd, unsigned long buf, unsigned long count,
                                unsigned long arg4, unsigned long arg5, unsigned long arg6);
+static unsigned long sys_open(unsigned long pathname, unsigned long flags, unsigned long mode);
+static unsigned long sys_close(unsigned long fd);
+static unsigned long sys_execve(unsigned long filename, unsigned long argv, unsigned long envp);
 static unsigned long sys_exit(unsigned long code, unsigned long arg2, unsigned long arg3,
                               unsigned long arg4, unsigned long arg5, unsigned long arg6);
 static unsigned long sys_getpid(unsigned long arg1, unsigned long arg2, unsigned long arg3,
@@ -73,13 +76,24 @@ static unsigned long sys_getpid(unsigned long arg1, unsigned long arg2, unsigned
 static unsigned long sys_getcwd(unsigned long buf, unsigned long size, unsigned long arg3,
                                 unsigned long arg4, unsigned long arg5, unsigned long arg6);
 
+/* File descriptor table */
+#define MAX_FD 128
+static struct {
+    int used;
+    const char *path;
+} fd_table[MAX_FD];
+static int next_fd = 10;  /* Start at 10, leave 0-9 for stdin/stdout/stderr */
+
 /* Syscall table */
 static syscall_handler_t syscall_table[64] = {
-    [0] = sys_read,
-    [1] = sys_write,
-    [9] = sys_getcwd,    /* getcwd */
-    [39] = sys_getpid,   /* getpid */
-    [60] = sys_exit,
+    [0] = sys_read,        /* read */
+    [1] = sys_write,       /* write */
+    [2] = sys_open,        /* open */
+    [3] = sys_close,       /* close */
+    [9] = sys_getcwd,      /* getcwd */
+    [39] = sys_getpid,     /* getpid */
+    [59] = sys_execve,     /* execve */
+    [60] = sys_exit,      /* exit */
 };
 
 /*
@@ -173,6 +187,70 @@ static unsigned long sys_write(unsigned long fd, unsigned long buf, unsigned lon
     console_write_string((const char*)buf, count);
     
     return count;
+}
+
+/*
+ * sys_open - Open a file
+ * For now, returns a virtual file descriptor
+ */
+static unsigned long sys_open(unsigned long pathname, unsigned long flags, unsigned long mode) {
+    (void)flags;
+    (void)mode;
+    
+    /* Find free fd */
+    int fd = -1;
+    for (int i = next_fd; i < MAX_FD; i++) {
+        if (!fd_table[i].used) {
+            fd = i;
+            next_fd = i + 1;
+            if (next_fd >= MAX_FD) next_fd = 10;
+            fd_table[fd].used = 1;
+            fd_table[fd].path = (const char*)pathname;
+            break;
+        }
+    }
+    
+    if (fd < 0) {
+        return -1;  /* No free fd */
+    }
+    
+    return (unsigned long)fd;
+}
+
+/*
+ * sys_close - Close a file descriptor
+ */
+static unsigned long sys_close(unsigned long fd) {
+    if ((int)fd < 0 || fd >= MAX_FD) {
+        return -1;
+    }
+    
+    if (!fd_table[fd].used) {
+        return -1;  /* Not open */
+    }
+    
+    fd_table[fd].used = 0;
+    fd_table[fd].path = NULL;
+    
+    return 0;
+}
+
+/*
+ * sys_execve - Execute a program
+ * For now, this is a stub since we pre-load binaries
+ */
+static unsigned long sys_execve(unsigned long filename, unsigned long argv, unsigned long envp) {
+    (void)filename;
+    (void)argv;
+    (void)envp;
+    
+    /* For now, this is a no-op since binaries are pre-loaded
+     * In a full implementation, this would:
+     * 1. Load the binary from the given path
+     * 2. Set up new address space
+     * 3. Replace current process
+     */
+    return 0;
 }
 
 /*

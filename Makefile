@@ -72,7 +72,8 @@ C_SOURCES := \
 	$(SRC_DIR)/kernel/sync/atomic.c \
 	$(SRC_DIR)/kernel/sync/sync.c \
 	$(SRC_DIR)/kernel/syscall_impl.c \
-	$(SRC_DIR)/kernel/exec.c
+	$(SRC_DIR)/kernel/exec.c \
+	$(SRC_DIR)/kernel/process.c
 
 ASM_OBJ := $(patsubst %.S,$(BUILD_DIR)/%.o,$(notdir $(ASM_SOURCES)))
 C_OBJ := $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(C_SOURCES)))
@@ -207,9 +208,10 @@ iso: $(KERNEL_ELF)
 	@ls -la *.iso 2>/dev/null || echo "No ISO created"
 
 # Run in QEMU (uses floppy image for booting)
-run: floppy
+run: userland floppy
 	@echo "Running FeatherOS in QEMU..."
 	@echo "---"
+	@echo "Note: Run 'make userland' first to build shell binary"
 	@(qemu-system-x86_64 \
 		-fda featheros.img \
 		-m 256M \
@@ -217,7 +219,7 @@ run: floppy
 		-serial file:qemu_serial.log \
 		-no-reboot & \
 	sleep 3 && \
-	grep -i "hello\|kernel\|boot" qemu_serial.log 2>/dev/null | head -5 || echo "No boot messages found" && \
+	grep -i "hello\|kernel\|boot\|FeatherOS" qemu_serial.log 2>/dev/null | head -10 || echo "No boot messages found" && \
 	killall qemu-system-x86_64 2>/dev/null) || true
 
 # Sprint 3: Console & Basic I/O Test
