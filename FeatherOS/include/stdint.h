@@ -16,6 +16,8 @@ typedef signed long       int64_t;
 /* Size types */
 typedef unsigned long      size_t;
 typedef long               ssize_t;
+typedef unsigned long      uintptr_t;
+typedef long              intptr_t;
 
 /* Boolean type */
 typedef _Bool             bool;
